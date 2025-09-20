@@ -51,6 +51,7 @@ class Delivery(models.Model):
     customer = models.ForeignKey(User, on_delete=models.CASCADE)
     rider = models.TextField(blank=True, null=True)
     products = models.ForeignKey(Products, on_delete=models.CASCADE)
-    status = models.TextField(blank=True, null=True)
+    status = models.TextField(default='Pending')
     location = models.TextField(blank=True, null=True)
+    message = models.TextField(blank=True, null=True)
     delivery_issued = models.TextField(blank=True, null=True)

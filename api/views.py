@@ -1,29 +1,21 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from django.contrib.auth.models import User
+from rest_framework.permissions import AllowAny
 from rest_framework import status, generics
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .serializers import ProfileSerializer, RegisterSerializer, ClientsSerializer, ProductSerializer
-from .models import Profile, Products
+from .serializers import ProfileSerializer, RegisterSerializer, ClientsSerializer, ProductSerializer, DeliverySerializer
+from .models import Profile, Products, Delivery
 from django.shortcuts import get_object_or_404
 from rest_framework.parsers import MultiPartParser, FormParser
-import os
-import tempfile
-from django.http import JsonResponse
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from docx2pdf import convert
-from urllib.parse import urlparse
-from django.conf import settings
-import traceback
 from rest_framework.generics import DestroyAPIView
+from django.contrib.auth.models import User
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
+        token['id'] = user.id
         token['username'] = user.username
         token['email'] = user.email
         token['first_name'] = user.first_name
@@ -35,6 +27,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
         data.update({
+            "id": self.user.id,
             "username": self.user.username,
             "email": self.user.email,
             "first_name": self.user.first_name,
@@ -119,3 +112,47 @@ class ProductDeleteView(DestroyAPIView):
             return Response({"message": "Product deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
         except Products.DoesNotExist:
             return Response({"error": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+
+class ProductDetailView(generics.RetrieveAPIView):
+    permission_classes = [AllowAny]
+    queryset = Products.objects.all()
+    serializer_class = ProductSerializer
+    lookup_field = 'id'
+    
+    
+class SubmitDeliveryView(APIView):
+    permission_classes = [AllowAny]
+    def post(self, request, user_id, product_id):
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            product = Products.objects.get(id=product_id)
+        except Products.DoesNotExist:
+            return Response({'error': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        delivery_data = {
+            'customer': user.id,
+            'products': product.id,
+            'rider': request.data.get('rider', ''),
+            'location': request.data.get('location', ''),
+            'delivery_issued': request.data.get('delivery_issued', ''),
+        }
+
+        serializer = DeliverySerializer(data=delivery_data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    
+class UserDeliveriesView(generics.ListAPIView):
+    serializer_class = DeliverySerializer
+    permission_classes = [AllowAny]
+    
+    def get_queryset(self):
+        user_id = self.kwargs.get('user_id')
+        return Delivery.objects.filter(customer_id=user_id)

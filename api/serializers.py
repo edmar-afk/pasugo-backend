@@ -1,7 +1,7 @@
 # serializers.py
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Profile, Products
+from .models import Profile, Products, Delivery
 from django.db import models
 
 
@@ -71,3 +71,20 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'picture', 'date_posted', 'status', 'price', 'type']
         read_only_fields = ['id', 'date_posted']  # ✅ removed status
 
+
+class DeliverySerializer(serializers.ModelSerializer):
+    customer = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    products = serializers.PrimaryKeyRelatedField(queryset=Products.objects.all())
+
+    class Meta:
+        model = Delivery
+        fields = ['id', 'customer', 'rider', 'products', 'status', 'location', 'delivery_issued', 'message']
+        read_only_fields = ['id']
+
+
+class DeliverySerializer(serializers.ModelSerializer):
+    products = ProductSerializer(read_only=True)
+
+    class Meta:
+        model = Delivery
+        fields = ['id', 'customer', 'rider', 'products', 'status', 'location', 'message', 'delivery_issued']
