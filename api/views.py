@@ -4,7 +4,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework import status, generics
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .serializers import ProfileSerializer, RegisterSerializer, ClientsSerializer, ProductSerializer, DeliverySerializer
+from .serializers import ProfileSerializer, RegisterSerializer, ClientsSerializer, ProductSerializer, DeliverySerializer, DeliveryListsSerializer, RiderSerializer
 from .models import Profile, Products, Delivery
 from django.shortcuts import get_object_or_404
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -150,9 +150,76 @@ class SubmitDeliveryView(APIView):
     
     
 class UserDeliveriesView(generics.ListAPIView):
-    serializer_class = DeliverySerializer
+    serializer_class = DeliveryListsSerializer
     permission_classes = [AllowAny]
     
     def get_queryset(self):
         user_id = self.kwargs.get('user_id')
         return Delivery.objects.filter(customer_id=user_id)
+    
+
+
+class RidersListView(generics.ListAPIView):
+    permission_classes = [AllowAny] 
+    queryset = User.objects.all()
+    serializer_class = RiderSerializer
+    
+
+
+class UpdateUserStatusView(APIView):
+    permission_classes = [AllowAny] 
+    
+    def patch(self, request, user_id):
+        user = get_object_or_404(User, id=user_id)
+        profile = get_object_or_404(Profile, user=user)
+
+        new_status = request.data.get('status')
+        if not new_status:
+            return Response({"error": "Status is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        profile.status = new_status
+        profile.save()
+
+        serializer = ProfileSerializer(profile)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+class DeleteUserView(APIView):
+    permission_classes = [AllowAny] 
+    def delete(self, request, userid):
+        user = get_object_or_404(User, id=userid)
+        user.delete()
+        return Response({"message": "User deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+    
+    
+class DeliveryListView(generics.ListAPIView):
+    permission_classes = [AllowAny] 
+    queryset = Delivery.objects.all()
+    serializer_class = DeliveryListsSerializer
+    
+    
+class UpdateDeliveryStatusView(generics.UpdateAPIView):
+    queryset = Delivery.objects.all()
+    serializer_class = DeliverySerializer
+    permission_classes = [AllowAny]
+    lookup_url_kwarg = "delivery_id"
+
+    def update(self, request, *args, **kwargs):
+        delivery = get_object_or_404(Delivery, id=kwargs.get(self.lookup_url_kwarg))
+        serializer = self.get_serializer(delivery, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        # ✅ return fresh serialized object after update
+        return Response(self.get_serializer(delivery).data, status=status.HTTP_200_OK)
+    
+class DeleteDeliveryView(generics.DestroyAPIView):
+    queryset = Delivery.objects.all()
+    serializer_class = DeliverySerializer
+    permission_classes = [AllowAny]
+    lookup_url_kwarg = "delivery_id"
+
+    def delete(self, request, *args, **kwargs):
+        delivery = get_object_or_404(Delivery, id=kwargs.get(self.lookup_url_kwarg))
+        delivery.delete()
+        return Response({"message": "Delivery deleted successfully."}, status=status.HTTP_204_NO_CONTENT)

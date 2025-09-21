@@ -22,6 +22,17 @@ class ProfileSerializer(serializers.ModelSerializer):
         fields = ['username', 'first_name', 'email', 'role', 'status', 'profile_picture']
 
 
+class RiderSerializer(serializers.ModelSerializer):
+    profile = ProfileSerializer(read_only=True)
+
+    class Meta:
+        model = User
+        fields = [
+            'id', 'username', 'first_name', 'last_name', 'email',
+            'is_active', 'is_staff', 'is_superuser', 'date_joined',
+            'profile'
+        ]
+        
 
 class RegisterSerializer(serializers.ModelSerializer):
     role = serializers.CharField(required=False, allow_blank=True)
@@ -82,8 +93,9 @@ class DeliverySerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
 
 
-class DeliverySerializer(serializers.ModelSerializer):
+class DeliveryListsSerializer(serializers.ModelSerializer):
     products = ProductSerializer(read_only=True)
+    customer = UserSerializer(read_only=True)
 
     class Meta:
         model = Delivery
