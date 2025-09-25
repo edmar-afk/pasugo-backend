@@ -4,12 +4,13 @@ from rest_framework.permissions import AllowAny
 from rest_framework import status, generics
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .serializers import ProfileSerializer, RegisterSerializer, ClientsSerializer, ProductSerializer, DeliverySerializer, DeliveryListsSerializer, RiderSerializer
-from .models import Profile, Products, Delivery
+from .serializers import TransportationSerializer, ProfileSerializer, RegisterSerializer, ClientsSerializer, ProductSerializer, DeliverySerializer, DeliveryListsSerializer, RiderSerializer
+from .models import Profile, Products, Delivery, Transportation
 from django.shortcuts import get_object_or_404
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.generics import DestroyAPIView
 from django.contrib.auth.models import User
+from rest_framework import viewsets, permissions
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
@@ -223,3 +224,71 @@ class DeleteDeliveryView(generics.DestroyAPIView):
         delivery = get_object_or_404(Delivery, id=kwargs.get(self.lookup_url_kwarg))
         delivery.delete()
         return Response({"message": "Delivery deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+    
+    
+class TransportationCreateView(generics.CreateAPIView):
+    queryset = Transportation.objects.all()
+    serializer_class = TransportationSerializer
+    permission_classes = [AllowAny]
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['user_id'] = self.kwargs['user_id']
+        return context
+    
+
+class CustomerTransportationListView(generics.ListAPIView):
+    serializer_class = TransportationSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        customer_id = self.kwargs['customer_id']
+        customer = get_object_or_404(User, id=customer_id)
+        return Transportation.objects.filter(customer=customer).order_by('-id')
+
+    
+    
+class TransportMapView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, transportation_id):
+        try:
+            transportation = Transportation.objects.get(id=transportation_id)
+        except Transportation.DoesNotExist:
+            return Response({"detail": "Not found."}, status=404)
+
+        serializer = TransportationSerializer(transportation)
+        return Response(serializer.data)
+    
+
+class TransportationUpdatePricePaymentView(generics.UpdateAPIView):
+    serializer_class = TransportationSerializer
+    permission_classes = [AllowAny]  # adjust as needed
+
+    def get_object(self):
+        transportation_id = self.kwargs['transportation_id']
+        return get_object_or_404(Transportation, id=transportation_id)
+
+    def update(self, request, *args, **kwargs):
+        transportation = self.get_object()
+        data = {}
+
+        if 'price' in request.data:
+            data['price'] = request.data['price']
+        if 'payment' in request.data:
+            data['payment'] = request.data['payment']
+
+        serializer = self.get_serializer(
+            transportation, data=data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+
+class TransportationListView(generics.ListAPIView):
+    permission_classes = [AllowAny]
+    queryset = Transportation.objects.all().order_by('-date_requested')
+    serializer_class = TransportationSerializer

@@ -1,7 +1,7 @@
 # serializers.py
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Profile, Products, Delivery
+from .models import Profile, Products, Delivery, Transportation
 from django.db import models
 
 
@@ -47,13 +47,13 @@ class RegisterSerializer(serializers.ModelSerializer):
         }
 
     def create(self, validated_data):
-        role = validated_data.pop('role', None)
+        role = validated_data.pop('role', None) or "Rider"  # fallback
         profile_picture = validated_data.pop('profile_picture', None)
 
         user = User.objects.create_user(
-            username=validated_data['username'],  # stores mobile number
+            username=validated_data['username'],
             first_name=validated_data.get('first_name', ''),
-            last_name='Pending',  # <-- Added this line
+            last_name='Pending',
             email=validated_data.get('email', ''),
             password=validated_data['password']
         )
@@ -63,8 +63,8 @@ class RegisterSerializer(serializers.ModelSerializer):
             role=role,
             profile_picture=profile_picture
         )
-
         return user
+
 
 
 class ClientsSerializer(serializers.ModelSerializer):
@@ -100,3 +100,16 @@ class DeliveryListsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Delivery
         fields = ['id', 'customer', 'rider', 'products', 'status', 'location', 'message', 'delivery_issued']
+        
+        
+
+class TransportationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Transportation
+        fields = ['id', 'customer', 'date_requested', 'rider', 'status', 'current_location', 'destination', 'message', 'price', 'payment', 'passenger']
+        read_only_fields = ['customer', 'status', 'rider', 'date_requested']
+
+    def create(self, validated_data):
+        user_id = self.context['user_id']
+        validated_data['customer'] = User.objects.get(id=user_id)
+        return super().create(validated_data)
