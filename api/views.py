@@ -11,6 +11,8 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.generics import DestroyAPIView
 from django.contrib.auth.models import User
 from rest_framework import viewsets, permissions
+from rest_framework.generics import ListAPIView
+from rest_framework import status as drf_status
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
@@ -292,3 +294,76 @@ class TransportationListView(generics.ListAPIView):
     permission_classes = [AllowAny]
     queryset = Transportation.objects.all().order_by('-date_requested')
     serializer_class = TransportationSerializer
+    
+    
+class UpdateTransportView(APIView):
+    permission_classes = [AllowAny]
+
+    def patch(self, request, transport_id):
+        transport = get_object_or_404(Transportation, id=transport_id)
+        rider_name = request.data.get("rider")
+
+        if rider_name:
+            # Optional: check if such a user exists
+            if not User.objects.filter(first_name=rider_name).exists():
+                return Response({"error": "Rider not found"}, status=status.HTTP_404_NOT_FOUND)
+
+            # Save only the text (not a User object)
+            transport.rider = rider_name
+
+        transport.save()
+        serializer = TransportationSerializer(transport)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    
+    
+class ProfileByRoleView(ListAPIView):
+    serializer_class = ProfileSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        role = self.kwargs.get('role')
+        return Profile.objects.filter(role=role).select_related('user')
+    
+    
+class TransportationPaymentView(generics.RetrieveUpdateAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = TransportationSerializer
+    queryset = Transportation.objects.all()
+    lookup_url_kwarg = "transport_id"
+
+    def update(self, request, *args, **kwargs):
+        transport = get_object_or_404(Transportation, id=self.kwargs.get("transport_id"))
+        serializer = self.get_serializer(transport, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+
+        # Save payment image
+        if "payment" in request.data:
+            transport.payment = request.data["payment"]
+
+        # Update status
+        if "status" in request.data:
+            transport.status = request.data["status"]
+
+        # Update price
+        if "price" in request.data:
+            transport.price = request.data["price"]
+
+        transport.save()
+        return Response(TransportationSerializer(transport).data, status=drf_status.HTTP_200_OK)
+    
+    
+
+class UpdateDeliveryPaymentView(APIView):
+    permission_classes = [AllowAny]
+    
+    def put(self, request, delivery_id):
+        delivery = get_object_or_404(Delivery, id=delivery_id)
+        serializer = DeliverySerializer(delivery, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request, delivery_id):
+        return self.put(request, delivery_id)

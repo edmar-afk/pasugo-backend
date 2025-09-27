@@ -54,7 +54,7 @@ class Delivery(models.Model):
     status = models.TextField(default='Pending')
     location = models.TextField(blank=True, null=True)
     message = models.TextField(blank=True, null=True)
-    delivery_issued = models.TextField(blank=True, null=True)
+    delivery_issued = models.DateTimeField(auto_now_add=True)
     payment = models.ImageField(
         upload_to='payments/',
         blank=True,
@@ -63,6 +63,7 @@ class Delivery(models.Model):
             allowed_extensions=['jpg', 'jpeg', 'png'])
         ]
     )
+    price = models.TextField(blank=True, null=True)
 
 class Transportation(models.Model):
     customer = models.ForeignKey(User, on_delete=models.CASCADE)

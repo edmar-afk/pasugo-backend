@@ -89,7 +89,7 @@ class DeliverySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Delivery
-        fields = ['id', 'customer', 'rider', 'products', 'status', 'location', 'delivery_issued', 'message']
+        fields = ['id', 'customer', 'rider', 'products', 'status', 'location', 'delivery_issued', 'price', 'payment', 'message']
         read_only_fields = ['id']
 
 
@@ -99,7 +99,7 @@ class DeliveryListsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Delivery
-        fields = ['id', 'customer', 'rider', 'products', 'status', 'location', 'message', 'delivery_issued']
+        fields = ['id', 'customer', 'rider', 'products', 'status', 'location', 'message', 'delivery_issued', 'payment']
         
         
 

@@ -7,7 +7,7 @@ urlpatterns = [
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('register/', views.RegisterView.as_view(), name='register'),
     
-    
+    path('profiles/role/<str:role>/', views.ProfileByRoleView.as_view(), name='profiles-by-role'),
     path('profile/<int:user_id>/', views.UserProfileView.as_view(), name='user-profile'),
     path('clients/', views.ClientsListView.as_view(), name='clients-list'),
     
@@ -24,7 +24,7 @@ urlpatterns = [
     path('deliveries/', views.DeliveryListView.as_view(), name='delivery-list'),
     path('deliveries/<int:delivery_id>/update-status/', views.UpdateDeliveryStatusView.as_view(), name='update-delivery-status'),
     path("deliveries/<int:delivery_id>/delete/", views.DeleteDeliveryView.as_view(), name="delete-delivery"),
-    
+    path("deliveries/<int:delivery_id>/payment/", views.UpdateDeliveryPaymentView.as_view(), name="update_delivery_payment"),
     
     path('riders/', views.RidersListView.as_view(), name='riders-list'),
     path('users/<int:user_id>/update-status/', views.UpdateUserStatusView.as_view(), name='update-user-status'),
@@ -39,5 +39,8 @@ urlpatterns = [
          name='update-price-payment'),
     
     path('transports/', views.TransportationListView.as_view(), name='transport-list'),
+    path('transport/<int:transport_id>/update/', views.UpdateTransportView.as_view(), name='update-transport'),
+    path('transport/<int:transport_id>/payment/', views.TransportationPaymentView.as_view(), name='transport-payment'),
+    
     
 ]
