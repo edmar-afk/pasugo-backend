@@ -1,7 +1,7 @@
 # serializers.py
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Profile, Products, Delivery, Transportation
+from .models import Profile, Products, Delivery, Transportation, Message, Room
 from django.db import models
 
 
@@ -113,3 +113,24 @@ class TransportationSerializer(serializers.ModelSerializer):
         user_id = self.context['user_id']
         validated_data['customer'] = User.objects.get(id=user_id)
         return super().create(validated_data)
+    
+    
+class MessageSerializer(serializers.ModelSerializer):
+    sender_id = serializers.IntegerField(source='sender.id', read_only=True)
+    sender_name = serializers.CharField(source='sender.first_name', read_only=True)
+
+    class Meta:
+        model = Message
+        fields = ['id', 'sender_id', 'sender_name', 'content', 'timestamp']
+
+
+
+
+class RoomSerializer(serializers.ModelSerializer):
+    messages = MessageSerializer(many=True, read_only=True)
+    user1 = serializers.StringRelatedField()
+    user2 = serializers.StringRelatedField()
+
+    class Meta:
+        model = Room
+        fields = ['id', 'user1', 'user2', 'created_at', 'messages']

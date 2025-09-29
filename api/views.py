@@ -4,8 +4,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework import status, generics
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .serializers import TransportationSerializer, ProfileSerializer, RegisterSerializer, ClientsSerializer, ProductSerializer, DeliverySerializer, DeliveryListsSerializer, RiderSerializer
-from .models import Profile, Products, Delivery, Transportation
+from .serializers import RoomSerializer, MessageSerializer, TransportationSerializer, ProfileSerializer, RegisterSerializer, ClientsSerializer, ProductSerializer, DeliverySerializer, DeliveryListsSerializer, RiderSerializer
+from .models import Profile, Products, Delivery, Transportation, Message, Room
 from django.shortcuts import get_object_or_404
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.generics import DestroyAPIView
@@ -13,7 +13,9 @@ from django.contrib.auth.models import User
 from rest_framework import viewsets, permissions
 from rest_framework.generics import ListAPIView
 from rest_framework import status as drf_status
+from django.contrib.auth import get_user_model
 
+User = get_user_model()
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
@@ -367,3 +369,93 @@ class UpdateDeliveryPaymentView(APIView):
 
     def patch(self, request, delivery_id):
         return self.put(request, delivery_id)
+    
+    
+class ArrivedDeliveryListView(generics.ListAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = DeliveryListsSerializer
+
+    def get_queryset(self):
+        return Delivery.objects.filter(status='Arrived')
+    
+
+class ArrivedTransportationListView(generics.ListAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = TransportationSerializer
+
+    def get_queryset(self):
+        return Transportation.objects.filter(status="Arrived")
+    
+    
+class ChatRoomView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, user1_id, user2_id):
+        try:
+            room = Room.objects.get(user1_id=user1_id, user2_id=user2_id)
+        except Room.DoesNotExist:
+            try:
+                room = Room.objects.get(user1_id=user2_id, user2_id=user1_id)
+            except Room.DoesNotExist:
+                return Response({"error": "Room not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = RoomSerializer(room)
+        return Response(serializer.data)
+
+    def post(self, request, user1_id, user2_id):
+        sender_id = request.data.get("sender_id")
+        content = request.data.get("content")
+
+        if not sender_id:
+            return Response({"error": "Sender ID required"}, status=status.HTTP_400_BAD_REQUEST)
+        if not content:
+            return Response({"error": "Message content required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            sender = User.objects.get(id=sender_id)
+        except User.DoesNotExist:
+            return Response({"error": "Sender not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        room, created = Room.objects.get_or_create(
+            user1_id=min(user1_id, user2_id),
+            user2_id=max(user1_id, user2_id)
+        )
+
+        message = Message.objects.create(room=room, sender=sender, content=content)
+        serializer = MessageSerializer(message)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    
+
+class UserRoomsView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, user_id):
+        rooms = Room.objects.filter(user1_id=user_id) | Room.objects.filter(user2_id=user_id)
+        rooms = rooms.distinct()
+
+        # Get the other user in each room
+        user_ids = []
+        for room in rooms:
+            if room.user1_id == user_id:
+                user_ids.append(room.user2_id)
+            else:
+                user_ids.append(room.user1_id)
+
+        users = User.objects.filter(id__in=user_ids)
+        data = [{"id": u.id, "first_name": u.first_name, "username": u.username} for u in users]
+
+        return Response(data)
+    
+    
+class ChatUserView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, first_name):
+        try:
+            users = User.objects.filter(first_name__iexact=first_name).values("id", "first_name", "username")
+            if not users.exists():
+                return Response({"error": "No user found with that first name"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(users, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

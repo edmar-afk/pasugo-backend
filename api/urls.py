@@ -43,4 +43,14 @@ urlpatterns = [
     path('transport/<int:transport_id>/payment/', views.TransportationPaymentView.as_view(), name='transport-payment'),
     
     
+    
+    path('deliveries/arrived/', views.ArrivedDeliveryListView.as_view(), name='arrived-deliveries'),
+    path('transportations/arrived/', views.ArrivedTransportationListView.as_view(), name='arrived-transportations'),
+    
+    
+    
+    path('chat/<int:user1_id>/<int:user2_id>/', views.ChatRoomView.as_view(), name='chat-room'),
+    path('chat/users/<int:user_id>/', views.UserRoomsView.as_view(), name='user-rooms'),
+    path("chat-user/<str:first_name>/", views.ChatUserView.as_view(), name="chat-user"),
+    
 ]
