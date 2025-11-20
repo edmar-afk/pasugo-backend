@@ -52,14 +52,24 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
+
     def post(self, request):
+        username = request.data.get("username")
+
+        if User.objects.filter(username=username).exists():
+            return Response(
+                {"error": "This mobile number is already registered."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
-            user = serializer.save()
+            serializer.save()
             return Response({"message": "User registered successfully"}, status=status.HTTP_201_CREATED)
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    
+
+
 
 class UserProfileView(APIView):
     permission_classes = [AllowAny]
@@ -67,31 +77,31 @@ class UserProfileView(APIView):
         profile = get_object_or_404(Profile, user__id=user_id)
         serializer = ProfileSerializer(profile)
         return Response(serializer.data, status=status.HTTP_200_OK)
-    
-    
+
+
 class ClientsListView(generics.ListAPIView):
     serializer_class = ClientsSerializer
     permission_classes = [AllowAny]
-    
+
     def get_queryset(self):
         queryset = Profile.objects.select_related('user').all()
         role = self.request.query_params.get('role')
         if role:
             queryset = queryset.filter(role=role)
         return queryset
-    
+
 
 class ProductCreateView(generics.CreateAPIView):
     permission_classes = [AllowAny]
     queryset = Products.objects.all()
     serializer_class = ProductSerializer
-    
+
 
 class ProductListView(generics.ListAPIView):
     permission_classes = [AllowAny]
     queryset = Products.objects.all().order_by('-date_posted')
     serializer_class = ProductSerializer
-    
+
 class ProductDetailView(generics.RetrieveUpdateAPIView):
     permission_classes = [AllowAny]
     queryset = Products.objects.all()
@@ -102,8 +112,8 @@ class ProductDetailView(generics.RetrieveUpdateAPIView):
     def partial_update(self, request, *args, **kwargs):
         kwargs['partial'] = True
         return super().update(request, *args, **kwargs)
-    
-    
+
+
 class ProductDeleteView(DestroyAPIView):
     permission_classes = [AllowAny]
     queryset = Products.objects.all()
@@ -117,15 +127,15 @@ class ProductDeleteView(DestroyAPIView):
             return Response({"message": "Product deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
         except Products.DoesNotExist:
             return Response({"error": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
-        
+
 
 class ProductDetailView(generics.RetrieveAPIView):
     permission_classes = [AllowAny]
     queryset = Products.objects.all()
     serializer_class = ProductSerializer
     lookup_field = 'id'
-    
-    
+
+
 class SubmitDeliveryView(APIView):
     permission_classes = [AllowAny]
     def post(self, request, user_id, product_id):
@@ -152,28 +162,28 @@ class SubmitDeliveryView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    
+
+
 class UserDeliveriesView(generics.ListAPIView):
     serializer_class = DeliveryListsSerializer
     permission_classes = [AllowAny]
-    
+
     def get_queryset(self):
         user_id = self.kwargs.get('user_id')
         return Delivery.objects.filter(customer_id=user_id)
-    
+
 
 
 class RidersListView(generics.ListAPIView):
-    permission_classes = [AllowAny] 
+    permission_classes = [AllowAny]
     queryset = User.objects.all()
     serializer_class = RiderSerializer
-    
+
 
 
 class UpdateUserStatusView(APIView):
-    permission_classes = [AllowAny] 
-    
+    permission_classes = [AllowAny]
+
     def patch(self, request, user_id):
         user = get_object_or_404(User, id=user_id)
         profile = get_object_or_404(Profile, user=user)
@@ -187,22 +197,22 @@ class UpdateUserStatusView(APIView):
 
         serializer = ProfileSerializer(profile)
         return Response(serializer.data, status=status.HTTP_200_OK)
-    
+
 
 class DeleteUserView(APIView):
-    permission_classes = [AllowAny] 
+    permission_classes = [AllowAny]
     def delete(self, request, userid):
         user = get_object_or_404(User, id=userid)
         user.delete()
         return Response({"message": "User deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
-    
-    
+
+
 class DeliveryListView(generics.ListAPIView):
-    permission_classes = [AllowAny] 
+    permission_classes = [AllowAny]
     queryset = Delivery.objects.all()
     serializer_class = DeliveryListsSerializer
-    
-    
+
+
 class UpdateDeliveryStatusView(generics.UpdateAPIView):
     queryset = Delivery.objects.all()
     serializer_class = DeliverySerializer
@@ -217,7 +227,7 @@ class UpdateDeliveryStatusView(generics.UpdateAPIView):
 
         # ✅ return fresh serialized object after update
         return Response(self.get_serializer(delivery).data, status=status.HTTP_200_OK)
-    
+
 class DeleteDeliveryView(generics.DestroyAPIView):
     queryset = Delivery.objects.all()
     serializer_class = DeliverySerializer
@@ -228,8 +238,8 @@ class DeleteDeliveryView(generics.DestroyAPIView):
         delivery = get_object_or_404(Delivery, id=kwargs.get(self.lookup_url_kwarg))
         delivery.delete()
         return Response({"message": "Delivery deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
-    
-    
+
+
 class TransportationCreateView(generics.CreateAPIView):
     queryset = Transportation.objects.all()
     serializer_class = TransportationSerializer
@@ -239,7 +249,7 @@ class TransportationCreateView(generics.CreateAPIView):
         context = super().get_serializer_context()
         context['user_id'] = self.kwargs['user_id']
         return context
-    
+
 
 class CustomerTransportationListView(generics.ListAPIView):
     serializer_class = TransportationSerializer
@@ -250,8 +260,8 @@ class CustomerTransportationListView(generics.ListAPIView):
         customer = get_object_or_404(User, id=customer_id)
         return Transportation.objects.filter(customer=customer).order_by('-id')
 
-    
-    
+
+
 class TransportMapView(APIView):
     permission_classes = [AllowAny]
 
@@ -263,7 +273,7 @@ class TransportMapView(APIView):
 
         serializer = TransportationSerializer(transportation)
         return Response(serializer.data)
-    
+
 
 class TransportationUpdatePricePaymentView(generics.UpdateAPIView):
     serializer_class = TransportationSerializer
@@ -289,15 +299,15 @@ class TransportationUpdatePricePaymentView(generics.UpdateAPIView):
         serializer.save()
 
         return Response(serializer.data, status=status.HTTP_200_OK)
-    
+
 
 
 class TransportationListView(generics.ListAPIView):
     permission_classes = [AllowAny]
     queryset = Transportation.objects.all().order_by('-date_requested')
     serializer_class = TransportationSerializer
-    
-    
+
+
 class UpdateTransportView(APIView):
     permission_classes = [AllowAny]
 
@@ -317,8 +327,8 @@ class UpdateTransportView(APIView):
         serializer = TransportationSerializer(transport)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    
-    
+
+
 class ProfileByRoleView(ListAPIView):
     serializer_class = ProfileSerializer
     permission_classes = [AllowAny]
@@ -326,8 +336,8 @@ class ProfileByRoleView(ListAPIView):
     def get_queryset(self):
         role = self.kwargs.get('role')
         return Profile.objects.filter(role=role).select_related('user')
-    
-    
+
+
 class TransportationPaymentView(generics.RetrieveUpdateAPIView):
     permission_classes = [AllowAny]
     serializer_class = TransportationSerializer
@@ -353,12 +363,12 @@ class TransportationPaymentView(generics.RetrieveUpdateAPIView):
 
         transport.save()
         return Response(TransportationSerializer(transport).data, status=drf_status.HTTP_200_OK)
-    
-    
+
+
 
 class UpdateDeliveryPaymentView(APIView):
     permission_classes = [AllowAny]
-    
+
     def put(self, request, delivery_id):
         delivery = get_object_or_404(Delivery, id=delivery_id)
         serializer = DeliverySerializer(delivery, data=request.data, partial=True)
@@ -369,15 +379,15 @@ class UpdateDeliveryPaymentView(APIView):
 
     def patch(self, request, delivery_id):
         return self.put(request, delivery_id)
-    
-    
+
+
 class ArrivedDeliveryListView(generics.ListAPIView):
     permission_classes = [AllowAny]
     serializer_class = DeliveryListsSerializer
 
     def get_queryset(self):
         return Delivery.objects.filter(status='Arrived')
-    
+
 
 class ArrivedTransportationListView(generics.ListAPIView):
     permission_classes = [AllowAny]
@@ -385,8 +395,8 @@ class ArrivedTransportationListView(generics.ListAPIView):
 
     def get_queryset(self):
         return Transportation.objects.filter(status="Arrived")
-    
-    
+
+
 class ChatRoomView(APIView):
     permission_classes = [AllowAny]
 
@@ -424,8 +434,8 @@ class ChatRoomView(APIView):
         message = Message.objects.create(room=room, sender=sender, content=content)
         serializer = MessageSerializer(message)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
-    
-    
+
+
 
 class UserRoomsView(APIView):
     permission_classes = [AllowAny]
@@ -446,8 +456,8 @@ class UserRoomsView(APIView):
         data = [{"id": u.id, "first_name": u.first_name, "username": u.username} for u in users]
 
         return Response(data)
-    
-    
+
+
 class ChatUserView(APIView):
     permission_classes = [AllowAny]
 
