@@ -4,7 +4,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework import status, generics
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .serializers import RoomSerializer, MessageSerializer, TransportationSerializer, ProfileSerializer, RegisterSerializer, ClientsSerializer, ProductSerializer, DeliverySerializer, DeliveryListsSerializer, RiderSerializer
+from .serializers import ProductQuantityDeductSerializer, RoomSerializer, MessageSerializer, TransportationSerializer, ProfileSerializer, RegisterSerializer, ClientsSerializer, ProductSerializer, DeliverySerializer, DeliveryListsSerializer, RiderSerializer
 from .models import Profile, Products, Delivery, Transportation, Message, Room
 from django.shortcuts import get_object_or_404
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -14,7 +14,7 @@ from rest_framework import viewsets, permissions
 from rest_framework.generics import ListAPIView
 from rest_framework import status as drf_status
 from django.contrib.auth import get_user_model
-
+from django.db import transaction
 User = get_user_model()
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
@@ -129,15 +129,17 @@ class ProductDeleteView(DestroyAPIView):
             return Response({"error": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
 
 
-class ProductDetailView(generics.RetrieveAPIView):
+class ProductDetailView(generics.RetrieveUpdateAPIView):
     permission_classes = [AllowAny]
     queryset = Products.objects.all()
     serializer_class = ProductSerializer
     lookup_field = 'id'
+    parser_classes = [MultiPartParser, FormParser]
 
 
 class SubmitDeliveryView(APIView):
     permission_classes = [AllowAny]
+
     def post(self, request, user_id, product_id):
         try:
             user = User.objects.get(id=user_id)
@@ -155,6 +157,8 @@ class SubmitDeliveryView(APIView):
             'rider': request.data.get('rider', ''),
             'location': request.data.get('location', ''),
             'delivery_issued': request.data.get('delivery_issued', ''),
+            'quantity': request.data.get('quantity', 1),
+            'price': request.data.get('price', product.price),
         }
 
         serializer = DeliverySerializer(data=delivery_data)
@@ -164,13 +168,15 @@ class SubmitDeliveryView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+
 class UserDeliveriesView(generics.ListAPIView):
     serializer_class = DeliveryListsSerializer
     permission_classes = [AllowAny]
 
     def get_queryset(self):
         user_id = self.kwargs.get('user_id')
-        return Delivery.objects.filter(customer_id=user_id)
+        return Delivery.objects.filter(customer_id=user_id).order_by('-id')
+
 
 
 
@@ -469,3 +475,35 @@ class ChatUserView(APIView):
             return Response(users, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+        
+
+
+
+class DeductProductQuantityView(APIView):
+    permission_classes = [AllowAny]
+    
+    def patch(self, request, product_id):
+        product = get_object_or_404(Products, id=product_id)
+        serializer = ProductQuantityDeductSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        deduct_qty = serializer.validated_data["quantity"]
+
+        with transaction.atomic():
+            if product.quantity < deduct_qty:
+                return Response(
+                    {"detail": "Insufficient stock"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            product.quantity -= deduct_qty
+            product.save(update_fields=["quantity"])
+
+        return Response(
+            {
+                "product_id": product.id,
+                "remaining_quantity": product.quantity
+            },
+            status=status.HTTP_200_OK
+        )

@@ -53,4 +53,10 @@ urlpatterns = [
     path('chat/users/<int:user_id>/', views.UserRoomsView.as_view(), name='user-rooms'),
     path("chat-user/<str:first_name>/", views.ChatUserView.as_view(), name="chat-user"),
     
+    
+     path(
+        "products/<int:product_id>/deduct-quantity/",
+        views.DeductProductQuantityView.as_view()
+    ),
+    
 ]

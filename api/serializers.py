@@ -79,7 +79,7 @@ class ClientsSerializer(serializers.ModelSerializer):
 class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Products
-        fields = ['id', 'name', 'picture', 'date_posted', 'status', 'price', 'type']
+        fields = ['id', 'name', 'picture', 'date_posted', 'status', 'price', 'type', 'quantity']
         read_only_fields = ['id', 'date_posted']  # ✅ removed status
 
 
@@ -89,7 +89,7 @@ class DeliverySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Delivery
-        fields = ['id', 'customer', 'rider', 'products', 'status', 'location', 'delivery_issued', 'price', 'payment', 'message']
+        fields = ['id', 'customer', 'rider', 'products', 'status', 'location', 'delivery_issued', 'price', 'payment', 'message', 'quantity']
         read_only_fields = ['id']
 
 
@@ -99,7 +99,7 @@ class DeliveryListsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Delivery
-        fields = ['id', 'customer', 'rider', 'products', 'status', 'location', 'message', 'delivery_issued', 'payment']
+        fields = ['id', 'customer', 'rider', 'products', 'status', 'location', 'message', 'delivery_issued', 'payment', 'quantity']
         
         
 
@@ -134,3 +134,6 @@ class RoomSerializer(serializers.ModelSerializer):
     class Meta:
         model = Room
         fields = ['id', 'user1', 'user2', 'created_at', 'messages']
+        
+class ProductQuantityDeductSerializer(serializers.Serializer):
+    quantity = serializers.IntegerField(min_value=1)

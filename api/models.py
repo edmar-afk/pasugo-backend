@@ -45,7 +45,7 @@ class Products(models.Model):
     date_posted = models.DateTimeField(auto_now_add=True)
     status = models.TextField(default='Available')
     type = models.TextField( blank=True, null=True,)
-    
+    quantity = models.IntegerField(default='0')
     
 class Delivery(models.Model):
     customer = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -64,6 +64,7 @@ class Delivery(models.Model):
         ]
     )
     price = models.TextField(blank=True, null=True)
+    quantity = models.IntegerField(default=0)
 
 class Transportation(models.Model):
     customer = models.ForeignKey(User, on_delete=models.CASCADE)
